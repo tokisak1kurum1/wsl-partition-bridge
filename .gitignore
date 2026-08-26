@@ -1,0 +1,9 @@
+# Local build outputs
+/wsl-partition-bridge.exe
+*.test
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
