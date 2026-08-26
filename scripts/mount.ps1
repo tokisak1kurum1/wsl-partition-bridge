@@ -96,7 +96,12 @@ if (Test-Path -LiteralPath $statePath) {
 
 Write-Host "[1/5] Checking WSL distribution and NBD tools..."
 Invoke-Wsl -Distro $distro -Arguments @('modprobe','nbd') | Out-Null
-Invoke-Wsl -Distro $distro -Arguments @('nbd-client','--version') | Out-Null
+Invoke-Wsl -Distro $distro -Arguments @('sh','-lc','command -v nbd-client >/dev/null') | Out-Null
+
+& wsl.exe -d $distro -u root -- findmnt -rn -M $mountPoint *> $null
+if ($LASTEXITCODE -eq 0) {
+    throw "$mountPoint is already mounted in $distro."
+}
 
 $routeOutput = (& wsl.exe -d $distro -- ip route show default 2>&1) -join "`n"
 if ($LASTEXITCODE -ne 0) {
@@ -123,6 +128,7 @@ $process = Start-Process -FilePath $exe -ArgumentList $bridgeArgs -PassThru -Win
     -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
 $connected = $false
+$mounted = $false
 try {
     $ready = $false
     for ($i = 0; $i -lt 30; $i++) {
@@ -147,6 +153,7 @@ try {
     Write-Host "[4/5] Mounting $device read-only at $mountPoint..."
     Invoke-Wsl -Distro $distro -Arguments @('mkdir','-p',$mountPoint) | Out-Null
     Invoke-Wsl -Distro $distro -Arguments @('mount','-t',$fileSystem,'-o','ro',$device,$mountPoint) | Out-Null
+    $mounted = $true
 
     $state = [ordered]@{
         BridgePid  = $process.Id
@@ -174,6 +181,9 @@ try {
     }
 }
 catch {
+    if ($mounted) {
+        & wsl.exe -d $distro -u root -- umount $mountPoint | Out-Null
+    }
     if ($connected) {
         & wsl.exe -d $distro -u root -- nbd-client -d $device | Out-Null
     }
