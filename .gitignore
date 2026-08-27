@@ -2,9 +2,6 @@
 /wsl-partition-bridge.exe
 *.test
 
-# Local machine configuration
-/bridge.config.psd1
-
 # Editor / OS files
 .vscode/
 .idea/
